@@ -140,27 +140,25 @@ arch-cloud-vm-skill:
                   charly_install:
                     strategy: auto
 
-            # Every non-scalar block becomes a CHILD NODE `<entity>-<key>`, never nested under `vm:`.
-            arch-libvirt:
-              libvirt:
-                devices:
-                  channels:
-                    - {type: spicevmc, name: com.redhat.spice.0}
-                  graphics:
-                    # Socket-only SPICE — virt-manager and `remote-viewer
-                    # --connect qemu+ssh://…` auto-forward the UNIX socket over
-                    # libvirt RPC, zero extra setup. libvirt auto-allocates the
-                    # socket path under $XDG_RUNTIME_DIR/libvirt/qemu/.
-                    - type: spice
-                      listen:
-                        - type: socket
-                  video:
-                    - {model: virtio, vram: 65536, heads: 1, accel3d: false}
-                  rng:
-                    - {model: virtio, backend: /dev/urandom}
-                  memballoon: {model: virtio}
-                snippets:
-                  - "<channel type='unix'><target type='virtio' name='org.qemu.guest_agent.0'/></channel>"
+                libvirt:
+                  devices:
+                    channels:
+                      - {type: spicevmc, name: com.redhat.spice.0}
+                    graphics:
+                      # Socket-only SPICE — virt-manager and `remote-viewer
+                      # --connect qemu+ssh://…` auto-forward the UNIX socket over
+                      # libvirt RPC, zero extra setup. libvirt auto-allocates the
+                      # socket path under $XDG_RUNTIME_DIR/libvirt/qemu/.
+                      - type: spice
+                        listen:
+                          - type: socket
+                    video:
+                      - {model: virtio, vram: 65536, heads: 1, accel3d: false}
+                    rng:
+                      - {model: virtio, backend: /dev/urandom}
+                    memballoon: {model: virtio}
+                  snippets:
+                    - "<channel type='unix'><target type='virtio' name='org.qemu.guest_agent.0'/></channel>"
             ```
 
             ## Connecting from a remote workstation
@@ -226,9 +224,13 @@ arch-cloud-vm-skill:
             charly settings set hosts.o o.example.org
             charly --host o status
             charly --host o vm list
-            charly --host o test libvirt info arch
-            charly --host o test libvirt screenshot arch - > /tmp/shot.png
+            charly --host o check live arch
             ```
+
+            There is no `charly test` command, and the libvirt probes (`info`, `domain-xml`,
+            `screenshot`, `qmp`, …) have NO host subcommand — `charly check libvirt …` does not
+            exist either. They are DECLARATIVE check verbs authored as `libvirt:` on a plan step
+            and executed by `charly check live` / `charly check run <bed>`; see the recipe below.
 
             `charly` re-execs itself over SSH (via your system's `ssh`, so `~/.ssh/config`
             and agent forwarding just work). `-` as a screenshot path writes PNG bytes
@@ -351,11 +353,19 @@ arch-cloud-vm-skill:
             ```
 
             ### BIOS firmware + virtio-gpu took effect
-            ```bash
-            charly check libvirt domain-xml arch \
-              | grep -E "<loader|<nvram|<firmware|<type arch|<model type"
+
+            `domain-xml` is a check VERB, not a host command — assert it from the bed's `plan:`
+            and run it with `charly check live arch`:
+
+            ```yaml
+            - check: libvirt=domain-xml
+              id: libvirt-domain-xml-virtio
+              libvirt: "domain-xml"
+              stdout: {contains: "type='virtio'"}
+              context: [runtime]
             ```
-            Pass: NO `<loader>` / `<nvram>` / `<firmware>` elements; `<model type='virtio'>` inside `<video>`.
+            Pass: `<model type='virtio'>` inside `<video>`, and — for `firmware: bios` — NO
+            `<loader>` / `<nvram>` / `<firmware>` elements in the emitted domain XML.
 
             ### No simpledrm race
             ```bash
@@ -443,7 +453,7 @@ cachyos-bootstrap-vm-skill:
             | Disk / RAM / CPU | 25G / 4G / 2 |
             | Machine / firmware | q35 / uefi-insecure |
             | Network | user mode |
-            | SSH | user `cachy`, port 12226, key_source generate |
+            | SSH | user `cachy`, `port_auto: true` (the runner allocates a free host port at vm-create and persists it in vm_state), key_source generate |
 
             The `cachyos` distro config (base packages, keyring, mirrors, repos) comes from
             the embedded `distro: cachyos` build vocabulary baked into the `charly` binary
@@ -547,7 +557,7 @@ debian-debootstrap-vm-skill:
             | Disk / RAM / CPU | 20G / 4G / 2 |
             | Machine / firmware | q35 / uefi-insecure |
             | Network | user mode |
-            | SSH | user `debian`, port 12227, key_source generate |
+            | SSH | user `debian`, `port_auto: true` (the runner allocates a free host port at vm-create and persists it in vm_state), key_source generate |
 
             The `debian` distro config (debootstrap suite/mirror, base packages, bootloader
             template) comes from the embedded `distro:` build vocabulary baked into the
@@ -623,7 +633,7 @@ ubuntu-debootstrap-vm-skill:
             | Disk / RAM / CPU | 20G / 4G / 2 |
             | Machine / firmware | q35 / uefi-insecure |
             | Network | user mode |
-            | SSH | user `ubuntu`, port 12229, key_source generate |
+            | SSH | user `ubuntu`, `port_auto: true` (the runner allocates a free host port at vm-create and persists it in vm_state), key_source generate |
 
             The `ubuntu` distro config (`inherits: debian`; debootstrap suite `noble`,
             mirror, base packages) comes from the embedded build vocabulary
@@ -902,8 +912,10 @@ vm-skill:
             ## `kind: vm` entity reference
 
             Canonical node-form shape, condensed from `/charly-vm:vms-catalog`. Each VM is a
-            name-first top-level node; every non-scalar block (here `libvirt:`) is a CHILD NODE
-            `<entity>-<key>`, never nested under `vm:`:
+            name-first top-level node, and EVERY block — `libvirt:` included — lives INLINE in the
+            `vm:` kind value. The former named child-node shape (`<entity>-<key>`) was deleted by
+            the schema-compaction cutover and is now a hard loader error:
+            `no kind discriminator — collections and plan steps live INLINE in the kind value`.
 
             ```yaml
             # cloud_image source
@@ -945,11 +957,10 @@ vm-skill:
                 cloud_init:
                   package: [sudo, spice-vdagent]
                   charly_install: {strategy: auto}
-            arch-libvirt:                                       # CHILD NODE — libvirt block hoisted out of `vm:`
-              libvirt:
-                devices:
-                  video: [{model: virtio, vram: 65536, heads: 1, accel3d: false}]
-                  graphics: [{type: spice, autoport: "yes", listen: 127.0.0.1}]
+                libvirt:
+                  devices:
+                    video: [{model: virtio, vram: 65536, heads: 1, accel3d: false}]
+                    graphics: [{type: spice, autoport: "yes", listen: 127.0.0.1}]
 
             # bootc source
             my-bootc:
@@ -1034,8 +1045,8 @@ vm-skill:
             rootless-first (`qemu:///session`), so a non-root user with only the system
             daemon still needs the user-session path (which `resolveVmBackend()` autospawns).
 
-            For projects whose check beds use `charly check libvirt …` and `charly check
-            spice …` probes (e.g., the project's `arch:` VM template), pin the
+            For projects whose check beds use the `libvirt:` and `spice:` check verbs
+            (e.g., the project's `arch:` VM template), pin the
             backend explicitly via `backend: libvirt` on the kind:vm entity —
             `backend: auto` would silently fall through to qemu when the daemon
             is missing, breaking every libvirt-RPC probe with a confusing
@@ -1130,11 +1141,11 @@ vm-skill:
 
             ## Libvirt XML configuration
 
-            Primary surface is the structured `LibvirtDomain` in the VM's `<name>-libvirt` child node (`<name>-libvirt: {libvirt: {features, cpu, clock, devices, sysinfo, launch_security, …}}`). See `/charly-internals:libvirt-renderer` for the full schema.
+            Primary surface is the structured `LibvirtDomain` on the VM entity's own INLINE `libvirt:` field (`<name>: {vm: {…, libvirt: {features, cpu, clock, devices, sysinfo, launch_security, …}}}` — `#Vm.libvirt?: #LibvirtDomain`). See `/charly-internals:libvirt-renderer` for the full schema.
 
-            Raw-XML escape hatch: the `<name>-libvirt` node's `libvirt.snippets:` (list of strings) — classified by element name. Device-scoped elements go into `<devices>`, domain-scoped before `</domain>`. Deduplicated by exact string match.
+            Raw-XML escape hatch: the VM entity's inline `libvirt.snippets:` (list of strings) — classified by element name. Device-scoped elements go into `<devices>`, domain-scoped before `</domain>`. Deduplicated by exact string match.
 
-            Layer-level raw snippets: a candy's `charly.yml` `libvirt.snippets:` is supported for layers that contribute device XML (e.g., `/charly-distros:qemu-guest-agent` contributes the virtio-serial channel). Box-level `libvirt: [...]` is not a valid field — VM XML lives on the VM entity's `<name>-libvirt` child node.
+            Raw XML passthrough: `libvirt.snippets:` and `libvirt.xml_passthrough:` are typed-open escape hatches INSIDE the VM entity's own `libvirt:` block. The CANDY-level `libvirt:` raw-snippet field was REMOVED (zero live Go consumers, retired alongside the box-level libvirt hard cutover — see the note at `spec/schema/candy.cue`), so a layer can no longer contribute device XML that way; authoring it now fails closed with `libvirt: field not allowed`. Box-level `libvirt: [...]` is likewise not a valid field — VM XML lives on the VM entity's inline `libvirt:`.
 
             Source: `candy/plugin-vm/libvirt.go` (`InjectLibvirtXML` — the former `charly/libvirt.go` is DELETED, K-wave 2), `sdk/vmshared/libvirt_yaml.go`, `candy/plugin-vm/libvirt_yaml_bridge.go`.
 
@@ -1379,13 +1390,13 @@ vms-catalog-skill:
                 disk_size: 20G | "10 GiB" | 1T         # VIRTUAL size; qcow2 is lazily/sparsely allocated (grows on demand)
                 ram: 4G | "8192M"
                 cpu: 4                                 # yaml key is singular `cpu` (VmSpec.Cpus)
-                machine: q35 | virt | i440fx           # default: host-native
+                machine: q35 | virt | i440fx | pc      # default: host-native
                 firmware: bios | uefi-insecure | uefi-secure  # default: bios
                 backend: auto | libvirt | qemu         # default: auto
                 autostart: true                        # start at host boot (libvirt only — see below)
                 # Network:
                 network:
-                  mode: user | bridge | nat
+                  mode: user | bridge | nat | network
                   bridge: br0                          # only when mode=bridge
                   mac: "52:54:…"                       # optional pin; default stable-from-name
                   port_forwards: ["8080:80", "auto:6443"] # "<host>:<guest>", additive to SSH forward; host may be `auto` → free host port auto-allocated at vm-create + persisted in vm_state (the sibling of ssh.port_auto; use it so concurrent beds sharing one entity never collide)
@@ -1416,6 +1427,15 @@ vms-catalog-skill:
                     filesystems:                                             # virtiofs/9p host↔guest shares
                       - {driver: virtiofs, accessmode: passthrough, source: /home/me, target: workspace}
                   # memory_backing is auto-paired (memfd + shared) for any virtiofs share
+                # Ordered plan steps — INLINE on the entity, same #Step grammar as any other kind:
+                plan:
+                  - check: the guest reached steady state
+                    id: vm-running
+                    libvirt: info
+                    stdout: {contains: running}
+                # Named snapshots (the `clone` source arm's `from_snapshot:` target):
+                snapshot:
+                  - name: golden
             ```
 
             ### autostart — start the VM at host boot
@@ -1475,7 +1495,7 @@ vms-catalog-skill:
 
             Use when the VM is built from an **externally published qcow2** (Arch cloud image from pkgbuild.com, Fedora Cloud, Ubuntu Cloud, Debian Cloud, CentOS Cloud, etc.). The build pipeline fetches the URL, integrity-checks it via sha256 (sidecar auto-resolved when `checksum.value` is empty), creates a qcow2 overlay at `spec.disk_size`, renders a NoCloud seed ISO, and hands off to libvirt/QEMU.
 
-            Canonical example: `/charly-vm:arch-cloud-vm`. Only existing cloud_image VM in the repo — **read it before authoring another one**. It documents the non-obvious decisions learned the hard way:
+            Canonical example: `/charly-vm:arch-cloud-vm` — the most fully documented cloud_image VM, and the one to **read before authoring another one** (it is not the only one: `kind: cloud_image` sources also ship in `charly/charly.yml`, `distro-fedora` and `distro-arch`). It documents the non-obvious decisions learned the hard way:
 
             - **BIOS firmware is usually the right default.** Distribution cloud images ship both a BIOS boot partition and an EFI System Partition, but the ESP's bootloader binary often has an **embedded grub.cfg that predates the maintainer's latest `/etc/default/grub`** (Arch's upstream issue with `fbcon=nodefer`). BIOS boot reads `/boot/grub/grub.cfg` directly from the root fs, which is always current.
             - **virtio-gpu, not QXL.** See `/charly-internals:libvirt-renderer` "video model choice" — virtio-gpu is the modern default for Linux guests.
@@ -1485,7 +1505,7 @@ vms-catalog-skill:
 
             1. Find the upstream qcow2 URL + verify a sha256 sidecar exists (<url>.SHA256 / .sha256 / .sha256sum).
             2. Identify the **pre-existing user account** in the upstream image (`arch`, `alpine`, `ubuntu`, `fedora`, `debian`, `cloud-user`, etc.). `base_user:` selects the account to adopt and NOTHING else — it no longer steers any render branch, because the base_user inference is deleted. **`distro:` is required on a `cloud_image` source and the vm kind's `OpValidate` rejects a source that omits it.** Do NOT reason from which dispatch tables an id appears in: the render's dispatch union and the vocabulary `candy_select` resolves against are DIFFERENT SETS, and an id in the first but not the second is exactly where the silent zero-package failure lives.** They are: `composePackages` keys on {`debian`, `ubuntu`} (omitting picks `openssh` over `openssh-server`, so cloud-init hard-fails `E: Unable to locate package openssh`); `sshUnitForDistro` keys on the same two (omitting yields unit `sshd` where Debian needs `ssh`); `pacmanFamily`, i.e. `FormatForDistroID(distro) == "pac"`, keys on **five** ids — {`arch`, `archarm`, `manjaro`, `endeavouros`, `cachyos`} — and omitting drops the guest onto the `packages:` path instead of `pacman -Sy --needed` plus the sshd try-restart guard, so cloud-init's bare `pacman -S` re-triggers exactly the host-key regen race described in `/charly-internals:cloud-init-renderer` (its D15 section); and the init branch keys on {`alpine`} (omitting renders systemd onto an OpenRC guest, and the VM boots unreachable). Because nothing is inferred, a CachyOS, Manjaro, EndeavourOS or archarm image is in the pacman family when — and only when — it SAYS so; all four are first-class ids in the vocabulary, so none of them needs to borrow `arch`. An omitted distro is rejected at author time rather than silently leaving the pacman family and taking the racy install path; likewise an Alpine image whose account is not literally `alpine`. The qualifier is load-bearing in both directions, and both are statements about the MECHANISM, not permissions that compete with the rule above: an Arch derivative shipping an `arch` account happens to resolve to `arch` and render correctly, while a Debian image shipping an `alpine` account resolves to `alpine` and breaks. Neither changes what to write — **the SET rule stated at the top of this section governs** — a Manjaro image writes `distro: arch`, whatever its account happens to make the inference do. Not `manjaro`: that is a `pacmanFamily` key, so cloud-init would render it correctly, but it is **not** one of the five ids `candy_select` resolves against, so candy installation would compile nothing. The two tables are different sets, and this clause is scoped to the candy vocabulary. **Always SET `distro:`, as a BARE id from the closed `#DistroID` vocabulary.** Two consumers read this field against **different sets**, which is the whole difficulty. The cloud-init dispatches resolve it through the generated `spec.DistroFormats` / `DistroSSHUnits` / `DistroInits` tables — 13 ids, no inference from `base_user`, and no fallback for a miss. `buildVmSyntheticBox` (`candy/plugin-fleet/candy_select.go`, not source-kind gated) instead resolves this field — or `base_user` when empty — against a **five-id vocabulary**, `{arch, cachyos, debian, fedora, ubuntu}`, with exact-then-base-name lookup and no alias or `ID_LIKE` rescue; a miss leaves `img.Pkg` unset and candy installation compiles **zero package steps silently** while `fleet add` reports success. **If the guest is one of those five, name it.** **Alpine is the case that must not be generalised: set `distro: alpine`.** It IS a vocabulary member now (`alpine: {format: apk, ssh_unit: sshd, init: openrc}`), and naming it is what selects apk plus the OpenRC path — any other value renders systemd onto a guest that has none and the VM boots unreachable. Alpine's candy installation is unresolvable either way; losing the packages is recoverable, losing the boot is not. **For a guest outside the five, naming a near relative is a workaround, not a repair** — `arch` for manjaro/archarm/endeavouros, `fedora` for Rocky or AlmaLinux, `ubuntu` for a Ubuntu derivative. It makes candy steps compile, but it selects **that** distro's DistroDef, version tags and repositories: fedora's carries `version: "43"`, so candies' `fedora:43` sections apply to a Rocky guest and its rpm templates reach for COPR, which is Fedora infrastructure. The lookup succeeding is not the install working. The repair is a vocabulary entry, which is a product gap; openSUSE has neither an entry nor a near relative, since its manager is zypper. Use a bare id — `ResolveDistro` strips at `:` while the dispatches compare exactly, so `distro: debian:13` yields `openssh` instead of `openssh-server`. (The `rocky: fedora` line in `charly.yml` is `ovmf_distro_aliases`, an OVMF FIRMWARE table, not consulted here.) Conversely a wrong id that the vocabulary DOES resolve is actively harmful — `distro:` also selects the guest's package manager for candy installation via `buildVmSyntheticBox` (`candy/plugin-fleet/candy_select.go`, with no source-kind gate), whose own comment records a candy deploy running `pacman` on a debian guest and failing exit 127, and a missing `DistroDef` compiling zero package steps for every candy, silently. `base_user: debian` or `ubuntu` without it resolves to the empty distro, which picks `openssh` instead of `openssh-server` (cloud-init hard-fails `E: Unable to locate package openssh`) and unit `sshd` where Debian needs `ssh`; an Alpine image whose account is named anything but `alpine` renders the systemd path onto an OpenRC guest. All three boot unreachable. This becomes `source.base_user:` — triggers the adopt pattern described below.
-            3. Start from `/charly-vm:arch-cloud-vm` as a template. Change `url`, `base_user`, **`distro:`** (the template ships it commented out, which is legal only for the `arch` guest it happens to be — see the rule above), and the distro-specific cloud_init `package:` and `runcmd:`.
+            3. Start from `/charly-vm:arch-cloud-vm` as a template. Change `url`, `base_user`, **`distro:`** (the template ships it LIVE as `distro: arch`; it is required on every cloud_image source, so change the value rather than expecting to uncomment it — see the rule above), and the distro-specific cloud_init `package:` and `runcmd:`.
             4. Pick firmware: default to `bios` unless the upstream image explicitly requires UEFI (e.g., secure boot lock-in).
             5. Run `charly vm build <name>` — observe the fetched qcow2 sha256 + rendered seed ISO path.
             6. Run `charly vm create <name>` + `charly vm ssh <name>` to verify cloud-init completed.
