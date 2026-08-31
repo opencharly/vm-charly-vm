@@ -22,12 +22,8 @@ arch-cloud-vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            First kind:vm entity with source.kind: cloud_image — fetches the Arch Linux cloud
-            qcow2 from pkgbuild.com, applies cloud-init, boots under libvirt/QEMU via BIOS
-            firmware + virtio-gpu. Documents the stale-BOOTX64.EFI RCA, the
-            simpledrm→qxldrmfb takeover race, the adopt-user pattern, and resource sizing.
-            MUST be invoked before editing arch in box/arch/charly.yml or authoring
-            another cloud_image VM from a template.
+            First kind:vm entity with source.kind: cloud_image — fetches the Arch Linux cloud qcow2 from pkgbuild.com, applies cloud-init, boots under libvirt/QEMU via BIOS firmware + virtio-gpu. Documents the stale-BOOTX64.EFI RCA, the simpledrm-to-qxldrmfb takeover race, the adopt-user pattern, and resource sizing.
+
         content: |
             # arch
 
@@ -422,10 +418,8 @@ cachyos-bootstrap-vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            CachyOS bootstrap VM (kind:vm cachyos-vm) — source.kind: bootstrap via
-            cachyos-pacstrap-builder + pacstrap, btrfs rootfs, uefi-insecure. Plus the
-            disposable check-cachyos-vm deploy. Lives in the opencharly/distro-cachyos submodule.
-            MUST be invoked before editing cachyos-vm or its check bed.
+            CachyOS bootstrap VM (kind:vm cachyos-vm) — source.kind: bootstrap via cachyos-pacstrap-builder + pacstrap, btrfs rootfs, uefi-insecure. Plus the disposable check-cachyos-vm deploy. Lives in the opencharly/distro-cachyos submodule. Use before editing cachyos-vm or its check bed.
+
         triggers:
             - "CachyOS images / `cachyos*` / `charly-cachyos` workstation profile / `box/cachyos` submodule"
         content: |
@@ -524,10 +518,8 @@ debian-debootstrap-vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            Debian bootstrap VM (kind:vm debian-debootstrap) — source.kind: bootstrap via
-            debian-debootstrap-builder + debootstrap, ext4 rootfs, uefi-insecure. Plus the
-            disposable check-debian-debootstrap-vm deploy. Lives in the opencharly/distro-debian submodule.
-            MUST be invoked before editing debian-debootstrap or its check bed.
+            Debian bootstrap VM (kind:vm debian-debootstrap) — source.kind: bootstrap via debian-debootstrap-builder + debootstrap, ext4 rootfs, uefi-insecure. Plus the disposable check-debian-debootstrap-vm deploy. Lives in the opencharly/distro-debian submodule. Use before editing debian-debootstrap or its check bed.
+
         triggers:
             - "Debian images / `debian*` / `box/debian` submodule"
         content: |
@@ -600,10 +592,8 @@ ubuntu-debootstrap-vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            Ubuntu bootstrap VM (kind:vm ubuntu-debootstrap) — source.kind: bootstrap via
-            ubuntu-debootstrap-builder + debootstrap, ext4 rootfs, uefi-insecure. Plus the
-            disposable check-ubuntu-debootstrap-vm deploy. Lives in the opencharly/distro-ubuntu submodule.
-            MUST be invoked before editing ubuntu-debootstrap or its check bed.
+            Ubuntu bootstrap VM (kind:vm ubuntu-debootstrap) — source.kind: bootstrap via ubuntu-debootstrap-builder + debootstrap, ext4 rootfs, uefi-insecure. Plus the disposable check-ubuntu-debootstrap-vm deploy. Lives in the opencharly/distro-ubuntu submodule. Use before editing ubuntu-debootstrap or its check bed.
+
         triggers:
             - "Ubuntu images / `ubuntu*` / `box/ubuntu` submodule"
         content: |
@@ -677,9 +667,8 @@ vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            MUST be invoked before any work involving: virtual machines, charly vm commands,
-            kind:vm entities in charly.yml, cloud_image vs bootc source types,
-            libvirt/QEMU backends, BIOS vs UEFI firmware, virtio-gpu video, or VM lifecycle.
+            Virtual machines, `charly vm` commands, kind:vm entities in charly.yml, cloud_image vs bootc source types, libvirt/QEMU backends, BIOS vs UEFI firmware, virtio-gpu video, or VM lifecycle.
+
         triggers:
             - "`charly update` / `charly vm *` / VM entities in `vm.yml` or `vm:`"
             - "Managed `~/.config/charly/ssh_config` fragment / `charly vm create` writes Host stanza"
@@ -1340,10 +1329,8 @@ vms-catalog-skill:
         family: vm
         owner: charly-vm
         description: |-
-            Authoring reference for kind:vm entities in vm.yml. Parallel to /charly-image:layer and /charly-image:image.
-            Covers the VmSpec schema, source.kind discriminator (cloud_image vs bootc),
-            base_user adopt pattern, and step-by-step recipes for both source kinds.
-            MUST be invoked before authoring or editing vm.yml entries.
+            Authoring reference for kind:vm entities in vm.yml — the VmSpec schema, source.kind discriminator (cloud_image vs bootc), base_user adopt pattern, and step-by-step recipes for both source kinds. Use before authoring or editing vm.yml entries.
+
         content: |
             # vms
 
@@ -1593,11 +1580,8 @@ omarchy-vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            The Omarchy VMs — `omarchy-vm` (`source.kind: iso`, the official installer run
-            fully unattended), `omarchy-pacstrap-vm` (charly's own from-packages path), and
-            the `charly-omarchy` keeper. Covers the seed answer files, the disk-first boot
-            order, and which bed proves what. MUST be invoked before editing any omarchy VM
-            entity or its bed.
+            The Omarchy VMs — `omarchy-vm` (source.kind: iso, the official installer run fully unattended), `omarchy-pacstrap-vm` (charly's own from-packages path), and the `charly-omarchy` keeper. Covers the seed answer files, the disk-first boot order, and which bed proves what. Use before editing omarchy-vm.
+
         triggers:
             - "omarchy VMs / `omarchy-vm` / `charly-omarchy` / `source.kind: iso` / unattended archinstall"
         content: |
