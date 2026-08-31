@@ -22,7 +22,7 @@ arch-cloud-vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            First kind:vm entity with source.kind: cloud_image — fetches the Arch Linux cloud qcow2 from pkgbuild.com, applies cloud-init, boots under libvirt/QEMU via BIOS firmware + virtio-gpu. Documents the stale-BOOTX64.EFI RCA, the simpledrm-to-qxldrmfb takeover race, the adopt-user pattern, and resource sizing.
+            First kind:vm entity with source.kind: cloud_image — fetches the Arch Linux cloud qcow2 from pkgbuild.com, applies cloud-init, boots under libvirt/QEMU via BIOS firmware + virtio-gpu. Documents the stale-BOOTX64.EFI RCA, the simpledrm-to-qxldrmfb takeover race, the adopt-user pattern, and resource sizing. MUST be invoked before editing arch in box/arch/charly.yml or authoring another cloud_image VM from a template.
 
         content: |
             # arch
@@ -667,7 +667,7 @@ vm-skill:
         family: vm
         owner: charly-vm
         description: |-
-            Virtual machines, `charly vm` commands, kind:vm entities in charly.yml, cloud_image vs bootc source types, libvirt/QEMU backends, BIOS vs UEFI firmware, virtio-gpu video, or VM lifecycle.
+            MUST be invoked before any work involving: virtual machines, `charly vm` commands, kind:vm entities in charly.yml, cloud_image vs bootc source types, libvirt/QEMU backends, BIOS vs UEFI firmware, virtio-gpu video, or VM lifecycle.
 
         triggers:
             - "`charly update` / `charly vm *` / VM entities in `vm.yml` or `vm:`"
