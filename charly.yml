@@ -689,6 +689,7 @@ vm-skill:
             - **`source.kind: bootc`** — pairs (via its `box:` source field) with a `candy:` image entry that has `bootc: true`. Runs `bootc install to-disk` inside a privileged container.
             - **`source.kind: bootstrap`** — builds a rootfs from PACKAGES with the distro's own bootstrapper (pacstrap / debootstrap / dnf) inside a privileged builder box, partitions a disk, and installs the distro's bootloader. Canonical examples: `/charly-vm:cachyos-bootstrap-vm`, `/charly-vm:debian-debootstrap-vm`.
             - **`source.kind: iso`** — boots a distro's OWN installer ISO with a charly-rendered answers volume, so the distro installs itself with nobody at the keyboard. The answer FORMAT belongs to the distro (`#DistroInstaller`); the answer DATA belongs to the VM entity (`installer:`). The blank disk is FIRST in the boot order, so the firmware falls through to the ISO on the first boot and the installed system boots from disk ever after — no eject, no detach, and no reboot-loop hazard. Canonical example: `/charly-vm:omarchy-vm`.
+            - **`source.kind: clone`** — builds a NEW VM on top of ANOTHER VM: `from_vm:` + `from_snapshot:` name the base entity and the exact snapshot of it to use. `charly vm build` materializes a fresh per-VM qcow2 with the parent snapshot's external disk as backing chain (qemu-img overlay), bumps the parent snapshot's refcount, and regenerates the cloud-init seed ISO with a fresh instance-id (`cloud_init_clean: true` additionally injects `cloud-init clean --machine-id --logs` so machine-id + SSH host keys regenerate on first boot). This is the VM-on-VM layering primitive — the VM analog of a container image's `FROM <base>`.
 
             VMs are not configured on `candy:` image entries — `vm:` / `libvirt:` on a `candy:` image are rejected at load time. `bootc: true` stays on a `candy:` image entry to mark it bootable. The legacy on-image `vm:`/`libvirt:` fields predate the schema floor and are no longer migratable — a config still carrying them must be re-authored as a name-first `kind: vm` node (see `/charly-build:migrate`). For the YAML authoring reference, see `/charly-vm:vms-catalog`; for the Go types, see `/charly-internals:vm-spec`.
 
@@ -712,6 +713,11 @@ vm-skill:
             | GPU driver mode (switch) | `charly vm gpu mode [vfio\|nvidia]` | Flip the WHOLE IOMMU group (display→nvidia/vfio, audio→snd_hda_intel/vfio); omit the arg to SHOW the mode |
             | GPU recover | `charly vm gpu recover` | Rebind an unbound/half-switched card to vfio-pci; reports **reboot-required** and does nothing on a true device_lock wedge |
             | Load image into guest | `charly vm cp-box <vm> <ref> [--as <tag>]` | `podman save \| ssh … podman load` a host image into a running guest — streamed, no intermediate tarball, verified-idempotent |
+            | Clone VM | `charly vm clone <new> --from <src>[@<snap>]` | Write a `source.kind: clone` declaration + build the clone disk (VM-on-VM; `--from arch` auto-snapshots, `--from arch@golden` names the snapshot) |
+            | Snapshot create | `charly vm snapshot create <vm> <name>` | External (clone-friendly) by default; `--mode internal` embeds in the disk |
+            | Snapshot create-consistent | `charly vm snapshot create-consistent <vm> <name>` | Guest-consistent (guest-agent fsfreeze → snapshot → thaw; strict, no silent fallback) |
+            | Snapshot capture-declared | `charly vm snapshot capture-declared <vm>` | Capture every snapshot declared in the entity's `snapshot:` block (idempotent) |
+            | Snapshot list/delete/revert | `charly vm snapshot {list,delete,revert,promote} <vm> <name>` | Registry + refcounts; delete refuses while clones/ephemerals reference it |
 
             VM name convention: `charly-<name>[-<instance>]`. Default libvirt URI: `qemu:///session`.
 
@@ -1160,6 +1166,43 @@ vm-skill:
             charly vm ssh <bootc-vm>
             ```
 
+            ### Build a VM on top of another VM (clone)
+
+            The `source.kind: clone` path builds a NEW VM from an EXISTING VM's
+            snapshot — the VM-on-VM layering primitive (the VM analog of a container
+            image's `FROM <base>`). The base is named by entity + snapshot, so the
+            exact base state is pinned:
+
+            ```bash
+            # 1. Provision the base VM and capture a named snapshot of its state.
+            charly vm build base-vm
+            charly vm create base-vm
+            charly vm ssh base-vm -- echo READY          # wait for first boot + cloud-init
+            charly vm snapshot create-consistent base-vm golden   # guest-consistent capture
+
+            # 2. Declarative alternative: the entity's snapshot: block declares the
+            #    snapshots; capture-declared captures them (idempotent).
+            #    base-vm: { vm: { ..., snapshot: [{name: golden}] } }
+            charly vm snapshot capture-declared base-vm
+
+            # 3. Clone: writes a source.kind: clone declaration + builds the disk.
+            charly vm clone clone-vm --from base-vm@golden
+            #    (or author the entity by hand and:)
+            charly vm build clone-vm
+            charly vm create clone-vm
+            charly vm ssh clone-vm -- echo CLONE_READY
+            ```
+
+            The clone disk is a qcow2 overlay whose backing file is the parent
+            snapshot's frozen external disk — the base bytes are shared, not copied
+            (the parent snapshot's refcount is bumped; `charly vm snapshot delete`
+            refuses while clones reference it). `cloud_init_clean: true` (the
+            `charly vm clone` default) regenerates machine-id + SSH host keys on
+            first boot so two clones never collide. The snapshot registry lives at
+            `~/.local/share/charly/vm/charly-<vm>/snapshots/registry.json`; the
+            snapshot commands accept `--domain <deploy>` to target a check bed's
+            per-deploy domain.
+
             ### Apply layers inside a VM
 
             ```bash
@@ -1334,7 +1377,7 @@ vms-catalog-skill:
         content: |
             # vms
 
-            `vm.yml` is the authoring surface for `kind: vm` entities — VM primitives sourced four ways: a remote cloud-image URL (`source.kind: cloud_image`), an in-repo bootc container image (`source.kind: bootc`), a rootfs built from packages by the distro's own bootstrapper (`source.kind: bootstrap`), or the distro's own installer ISO driven unattended by a charly-rendered answers volume (`source.kind: iso`). Loaded through `charly.yml`'s `import:` (or inline under its root). Entries are resolved by `LoadUnified` into `VmSpec` Go types (generated in `spec/spec/`) and consumed by `charly vm build`, `charly vm create`, and `charly fleet add vm:<name>`.
+            `vm.yml` is the authoring surface for `kind: vm` entities — VM primitives sourced five ways: a remote cloud-image URL (`source.kind: cloud_image`), an in-repo bootc container image (`source.kind: bootc`), a rootfs built from packages by the distro's own bootstrapper (`source.kind: bootstrap`), the distro's own installer ISO driven unattended by a charly-rendered answers volume (`source.kind: iso`), or ANOTHER VM's snapshot (`source.kind: clone` — the VM-on-VM layering path). Loaded through `charly.yml`'s `import:` (or inline under its root). Entries are resolved by `LoadUnified` into `VmSpec` Go types (generated in `spec/spec/`) and consumed by `charly vm build`, `charly vm create`, and `charly fleet add vm:<name>`.
 
             The VM surface parallels the `candy:` image surface: one YAML entry per entity, kind-keyed, discovered through includes. The Go types that back it live in `/charly-internals:vm-spec`; the rendering paths in `/charly-internals:libvirt-renderer` and `/charly-internals:cloud-init-renderer`.
 
@@ -1345,7 +1388,7 @@ vms-catalog-skill:
             <name>:
               vm:
                 source:
-                  kind: cloud_image | bootc
+                  kind: cloud_image | bootc | clone
                   # cloud_image branch:
                   url: https://…
                   checksum: { type: sha256, value?: <hex> }
@@ -1375,6 +1418,10 @@ vms-catalog-skill:
                   rootfs: ext4 | xfs | btrfs
                   root_size: 10G                      # optional cap; rest of disk stays unpartitioned
                   kernel_args: "…"
+                  # clone branch (VM-on-VM layering):
+                  from_vm: <base-entity>              # the base kind:vm entity
+                  from_snapshot: <name>               # the EXACT snapshot of the base to use (registry name)
+                  cloud_init_clean: true              # regenerate machine-id + SSH host keys on first boot
                 # Hardware (both branches):
                 disk_size: 20G | "10 GiB" | 1T         # VIRTUAL size; qcow2 is lazily/sparsely allocated (grows on demand)
                 ram: 4G | "8192M"
@@ -1511,6 +1558,82 @@ vms-catalog-skill:
             2. Add a `vm:` node with `source.kind: bootc` + `source.box: <entry-name>` (the bootc source field is `box:`, not `image:`).
             3. Size disk/ram/cpus for the workload (see the relevant per-pod or `/charly-distros:<name> / /charly-languages:<name> / /charly-infrastructure:<name> / /charly-tools:<name>` skill's VM Configuration section for the authoritative numbers).
             4. Run `charly vm build <vm-name>`. See `/charly-vm:vm` known-caveats section for bootc-specific gotchas (rootful storage split, nested-container `--transport containers-storage`, loopback device mount namespace).
+
+            ## source.kind: clone — build a VM on top of another VM
+
+            Use when the new VM is a LAYER on top of an existing VM: the base is
+            another `kind: vm` entity, and the exact base state is pinned by a
+            NAMED SNAPSHOT of it. This is the VM-on-VM layering primitive — the VM
+            analog of a container image's `FROM <base>` — and it is what makes a
+            provisioned VM reusable as a base for many children without re-running
+            its install.
+
+            ```yaml
+            base-vm:
+                vm:
+                    source:
+                        kind: cloud_image
+                        distro: arch
+                        url: https://fastly.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2
+                        base_user: arch
+                    disk_size: 20G
+                    # Declarative snapshots: captured by `charly vm snapshot capture-declared`
+                    # once the base is provisioned (idempotent).
+                    snapshot:
+                        - name: golden
+                          description: provisioned base state for clones
+
+            clone-vm:
+                vm:
+                    source:
+                        kind: clone
+                        from_vm: base-vm
+                        from_snapshot: golden
+                        cloud_init_clean: true
+                    disk_size: 20G
+            ```
+
+            ### Authoring a new clone VM
+
+            1. Provision the base VM and capture a named snapshot of its provisioned
+               state: `charly vm snapshot create-consistent <base> <name>` (guest-
+               consistent) or declare the `snapshot:` block on the base entity and
+               run `charly vm snapshot capture-declared <base>` (idempotent).
+            2. Add a `vm:` node with `source.kind: clone` + `source.from_vm:` +
+               `source.from_snapshot:` (both required; the snapshot must exist in
+               the base's registry at `~/.local/share/charly/vm/charly-<base>/snapshots/`).
+            3. `cloud_init_clean: true` (the `charly vm clone` default) injects
+               `cloud-init clean --machine-id --logs` so machine-id + SSH host keys
+               regenerate on first boot — two clones never collide.
+            4. Run `charly vm build <clone>` — materializes a fresh qcow2 overlay
+               whose backing file is the parent snapshot's frozen external disk (the
+               base bytes are shared, not copied; the parent snapshot's refcount is
+               bumped, and `charly vm snapshot delete` refuses while clones
+               reference it). Then `charly vm create <clone>` + `charly vm ssh`.
+            5. The one-command form: `charly vm clone <new> --from <base>[@<snap>]`
+               writes the declaration AND builds the disk.
+
+            ### Container ↔ VM switching (layered boxes)
+
+            A box (a `candy:` image entry) is the single definition for a layered
+            system. Deploy it as a container OR as a VM by changing the deploy node
+            only — the candies, env, ports, and check plan are identical:
+
+            ```yaml
+            # Same box, two substrates:
+            my-system:
+                pod:
+                    image: my-box            # container form
+            # vs:
+            my-system-vm:
+                vm:
+                    from: my-box-vm          # VM form — entity with source.kind: bootc, box: my-box
+            ```
+
+            For a VM-on-VM layered system, the base box's VM is cloned
+            (`source.kind: clone`) and the child's own candies are applied in-guest
+            via `charly fleet add vm:<child>` — the same InstallPlan IR that pod
+            deploys render into a Containerfile.
 
             ## Adopt pattern: base_user (cloud_image only)
 
