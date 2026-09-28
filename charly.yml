@@ -1,7 +1,5 @@
-version: 2026.261.1747
 charly-vm:
     candy:
-        version: 2026.218.1200
         description: |-
             Concept candy owning the charly-vm kind-authoring skills (vm schema + the bootc VM catalog). Owns its family's `skill:` kind entities (sibling nodes in this file) — the
             the plugins→candies migration; candy/plugin-marketplace regenerates the marketplace
