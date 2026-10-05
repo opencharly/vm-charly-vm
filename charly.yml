@@ -56,7 +56,7 @@ arch-cloud-vm-skill:
             | Video model | `virtio-gpu` | Modern default for Linux guests (Finding B, secondary) |
             | SPICE listener | `type: socket` (UNIX, auto-path) | Enables zero-config remote GUI via `qemu+ssh://` (see "Connecting from a remote workstation" below). virt-manager and `remote-viewer` auto-forward UNIX sockets through libvirt RPC fd-passing; TCP-loopback listeners are never auto-tunneled. No TCP port bound. |
 
-            Disposability is **not** a field on the VM entity — the `check-arch-vm` fleet carries `disposable: true` (LOAD-BEARING), which authorizes the unattended destroy + rebuild + restart driven by `charly check run check-arch-vm` (and the equivalent `charly update check-arch-vm`, since the fleet is folded into the Fleet map). See `/charly-internals:disposable`.
+            Disposability is **not** a field on the VM entity — the `check-arch-vm` deploy carries `disposable: true` (LOAD-BEARING), which authorizes the unattended destroy + rebuild + restart driven by `charly check run check-arch-vm` (and the equivalent `charly update check-arch-vm`, since the deploy is folded into the Deploy map). See `/charly-internals:disposable`.
 
             ## Disposable verification target
 
@@ -102,7 +102,7 @@ arch-cloud-vm-skill:
                                           # Note also that #DistroID (14 ids, omarchy included) and the embedded `distro:` BUILD vocabulary are
                                           # different sets, and the gap is SILENT: `buildVmSyntheticBox` resolves this field against
                                           # the build vocabulary and on a miss leaves `img.Pkg` unset, so candy installation compiles
-                                          # ZERO package steps while `fleet add` reports success. A schema-valid id is therefore not
+                                          # ZERO package steps while `deploy add` reports success. A schema-valid id is therefore not
                                           # automatically a resolvable one.
                                           # Use a bare id: `ResolveDistro` strips at `:` but the cloud-init
                                           # dispatches compare exactly, so `debian:13` yields `openssh`. (That sentence is about the
@@ -403,7 +403,7 @@ arch-cloud-vm-skill:
             - `/charly-vm:vms-catalog` — VmSpec authoring reference (schema, source.kind, adopt pattern)
             - `/charly-vm:vm` — VM lifecycle commands + BIOS/UEFI decision matrix + video model choice (disposability lives on the `disposable: true` deploy)
             - `/charly-build:migrate` — `charly migrate` legacy conversion
-            - `/charly-core:deploy` — `charly fleet add vm:arch <layer>` for in-guest layer application
+            - `/charly-core:deploy` — `charly deploy add vm:arch <layer>` for in-guest layer application
             - `/charly-internals:vm-spec` — Go types and validation rules
             - `/charly-internals:libvirt-renderer` — `<backend type='passt'/>` for portForward, virtio-gpu video model
             - `/charly-internals:cloud-init-renderer` — `composeUsers` adopt-merge, seed ISO, `charly_install.strategy: auto`
@@ -457,7 +457,7 @@ cachyos-bootstrap-vm-skill:
             disposable: true}`), so `charly -C box/cachyos check run check-cachyos-vm`
             runs the full R10 sequence unattended (the equivalent `charly update
             check-cachyos-vm` rebuild also works, since the deploy is folded into the
-            Fleet map).
+            Deploy map).
 
             `check-cachyos-gpu-vm` is the **full KDE GPU workstation** bed — it mirrors the
             operator `cachyos-gpu` workstation's dual-desktop config and is the acceptance gate
@@ -470,7 +470,7 @@ cachyos-bootstrap-vm-skill:
             `nvidia-ctk cdi generate` writes `/etc/cdi/nvidia.yaml`), then the vm deploy plugin's
             `OpPostApply` host-builds `selkies-kde-nvidia`, `charly vm cp-box
             --rootless`s it into the guest user's podman as `localhost/charly-selkies-kde:latest`,
-            and runs the guest's own project-free `charly fleet from-box
+            and runs the guest's own project-free `charly deploy from-box
             localhost/charly-selkies-kde:latest selkies-kde` — a PERSISTENT in-guest `--user`
             quadlet (GPU device auto-detected; `loginctl enable-linger` so it survives the
             guest reboot the fresh-rebuild leg recreates). Deploy-scope checks run in-guest over
@@ -560,7 +560,7 @@ debian-debootstrap-vm-skill:
             (`vm: {from: debian-debootstrap, disposable: true}`), so
             `charly -C box/debian check run check-debian-debootstrap-vm` runs the full R10 sequence
             unattended (the equivalent `charly update check-debian-debootstrap-vm` rebuild also works,
-            since the fleet is folded into the Fleet map).
+            since the deploy is folded into the Deploy map).
 
             ## debootstrap path
 
@@ -635,7 +635,7 @@ ubuntu-debootstrap-vm-skill:
             (`vm: {from: ubuntu-debootstrap, disposable: true}`), so
             `charly -C box/ubuntu check run check-ubuntu-debootstrap-vm` runs the full R10 sequence
             unattended (the equivalent `charly update check-ubuntu-debootstrap-vm` rebuild also works,
-            since the fleet is folded into the Fleet map).
+            since the deploy is folded into the Deploy map).
 
             ## debootstrap path
 
@@ -685,7 +685,7 @@ vm-skill:
               my-produce: { vm: { from: my-base-vm, disposable: true } }
               ```
               and keys EVERY verb to that deploy's domain with `--domain my-produce` (`vm create`, `vm stop`, `vm snapshot create`, `vm destroy`, and — for the bake — `vm bake --domain my-produce`). `charly vm bake --domain <deploy>` also sets the create's non-destructive `--keep-disk`, because a golden captured on the domain BACKS ONTO the domain's disk: recreating that disk would drop the golden's backing and the bake would boot an empty overlay. A bed that instead destroys the shared entity (or a domain it was not handed as `disposable: true`) is a B17 violation — authorization is derived from the destroyed TARGET, never from the bed's own name or its `lifecycle:` tag.
-            - **`charly update <vm-entity-name>`** does NOT gate on `disposable:` — an explicit invocation rebuilds ANY target (destroy→create the domain, reuse the qcow2 disk unless `--build`, then re-apply the deploy's layers via the shared `fleet add` path). For a non-disposable, non-ephemeral target it prints a one-line transparency note (`noteUpdateDisposability`) and proceeds. The `disposable: true` flag stays load-bearing as the authorization for UNATTENDED autonomous destroy + rebuild (the project rulebook R10 (`AGENTS.md`)) and the check-runner's unattended fresh rebuild, NOT as an `charly update` capability check. See `/charly-internals:disposable` and `/charly-core:charly-update`.
+            - **`charly update <vm-entity-name>`** does NOT gate on `disposable:` — an explicit invocation rebuilds ANY target (destroy→create the domain, reuse the qcow2 disk unless `--build`, then re-apply the deploy's layers via the shared `deploy add` path). For a non-disposable, non-ephemeral target it prints a one-line transparency note (`noteUpdateDisposability`) and proceeds. The `disposable: true` flag stays load-bearing as the authorization for UNATTENDED autonomous destroy + rebuild (the project rulebook R10 (`AGENTS.md`)) and the check-runner's unattended fresh rebuild, NOT as an `charly update` capability check. See `/charly-internals:disposable` and `/charly-core:charly-update`.
 
             ## Overview
 
@@ -768,7 +768,7 @@ vm-skill:
             3. **In-guest driver** — a passthrough guest needs the actual kernel module, not
                just the userspace container toolkit. Apply a kernel-driver layer (it
                blacklists the in-tree driver, regenerates the initramfs, and declares
-               `reboot: true` so `charly fleet add vm:<name>` reboots the guest and waits for it
+               `reboot: true` so `charly deploy add vm:<name>` reboots the guest and waits for it
                to return). The `nvidia`-toolkit layer + `nvidia-ctk cdi generate` then makes
                the GPU available to containers via CDI (`--device nvidia.com/gpu=all`).
 
@@ -945,7 +945,7 @@ vm-skill:
                                                                # Note also that #DistroID (14 ids, omarchy included) and the embedded `distro:` BUILD vocabulary are
                                                                # different sets, and the gap is SILENT: `buildVmSyntheticBox` resolves this field against
                                                                # the build vocabulary and on a miss leaves `img.Pkg` unset, so candy installation compiles
-                                                               # ZERO package steps while `fleet add` reports success. A schema-valid id is therefore not
+                                                               # ZERO package steps while `deploy add` reports success. A schema-valid id is therefore not
                                                                # automatically a resolvable one.
                                                                # Use a bare id: `ResolveDistro` strips at `:` but the cloud-init
                                                                # dispatches compare exactly, so `debian:13` yields `openssh`. (That sentence is about the
@@ -1213,12 +1213,12 @@ vm-skill:
 
             ```bash
             charly vm create arch
-            charly fleet add vm:arch ripgrep         # apply ripgrep layer over SSH
-            charly fleet add vm:arch fedora-coder --add-candy team-extras
-            charly fleet del vm:arch                 # reverse all applied layers
+            charly deploy add vm:arch ripgrep         # apply ripgrep layer over SSH
+            charly deploy add vm:arch fedora-coder --add-candy team-extras
+            charly deploy del vm:arch                 # reverse all applied layers
             ```
 
-            See `/charly-core:deploy` "vm: target" for the `charly fleet add vm:<name>` surface and `/charly-internals:vm-deploy-target` for the executor model.
+            See `/charly-core:deploy` "vm: target" for the `charly deploy add vm:<name>` surface and `/charly-internals:vm-deploy-target` for the executor model.
 
             ### Debug VM boot issues
 
@@ -1310,12 +1310,12 @@ vm-skill:
             exit=1
             ```
 
-            ### `charly fleet add vm:<vm> <localpkg-candy>` exits 0 WITHOUT installing
+            ### `charly deploy add vm:<vm> <localpkg-candy>` exits 0 WITHOUT installing
 
             A candy carrying a `local_pkg` block (the `charly` toolchain) needs the package
             built via the `charly generate-packages` plugin (nFPM) from local source, which
             only the check-bed runner does (it sets `--dev-local-pkg` automatically — see
-            `/charly-check:check`). A bare `charly fleet add
+            `/charly-check:check`). A bare `charly deploy add
             vm:<vm> charly` returns **rc=0** and prints:
 
             ```
@@ -1357,7 +1357,7 @@ vm-skill:
             - `/charly-internals:ovmf` — UEFI firmware path resolution; per-VM NVRAM; bios-skips-loader sentinel
             - `/charly-internals:cutover-policy` — hard cutover policy
             - `/charly-build:migrate` — `charly migrate` legacy conversion
-            - `/charly-core:deploy` — `charly fleet add vm:<name> <ref>` in-guest layer application
+            - `/charly-core:deploy` — `charly deploy add vm:<name> <ref>` in-guest layer application
             - `/charly-build:pull` — fetch container images into local storage (prereq for bootc VM builds)
             - `/charly-build:build` — building container images before VM disk builds
             - `/charly-image:layer` — `libvirt.snippets:` field in charly.yml
@@ -1369,7 +1369,7 @@ vm-skill:
 
             **MUST be invoked** when the task involves virtual machines, charly vm commands, kind:vm entities, cloud_image vs bootc source types, libvirt/QEMU backends, BIOS vs UEFI firmware choice, or VM lifecycle management. Invoke this skill BEFORE reading source code or launching Explore agents.
 
-            **Workflow position:** Standalone workflow. VM management is separate from container lifecycle, but `charly fleet add vm:<name>` bridges into the shared InstallPlan + deploy-target machinery.
+            **Workflow position:** Standalone workflow. VM management is separate from container lifecycle, but `charly deploy add vm:<name>` bridges into the shared InstallPlan + deploy-target machinery.
 
             Live-deploy verification: see /charly-check:check (the 11 Testing Standards) and /charly-internals:disposable.
 vms-catalog-skill:
@@ -1383,7 +1383,7 @@ vms-catalog-skill:
         content: |
             # vms
 
-            `vm.yml` is the authoring surface for `kind: vm` entities — VM primitives sourced five ways: a remote cloud-image URL (`source.kind: cloud_image`), an in-repo bootc container image (`source.kind: bootc`), a rootfs built from packages by the distro's own bootstrapper (`source.kind: bootstrap`), the distro's own installer ISO driven unattended by a charly-rendered answers volume (`source.kind: iso`), or ANOTHER VM's snapshot (`source.kind: clone` — the VM-on-VM layering path). Loaded through `charly.yml`'s `import:` (or inline under its root). Entries are resolved by `LoadUnified` into `VmSpec` Go types (generated in `spec/spec/`) and consumed by `charly vm build`, `charly vm create`, and `charly fleet add vm:<name>`.
+            `vm.yml` is the authoring surface for `kind: vm` entities — VM primitives sourced five ways: a remote cloud-image URL (`source.kind: cloud_image`), an in-repo bootc container image (`source.kind: bootc`), a rootfs built from packages by the distro's own bootstrapper (`source.kind: bootstrap`), the distro's own installer ISO driven unattended by a charly-rendered answers volume (`source.kind: iso`), or ANOTHER VM's snapshot (`source.kind: clone` — the VM-on-VM layering path). Loaded through `charly.yml`'s `import:` (or inline under its root). Entries are resolved by `LoadUnified` into `VmSpec` Go types (generated in `spec/spec/`) and consumed by `charly vm build`, `charly vm create`, and `charly deploy add vm:<name>`.
 
             The VM surface parallels the `candy:` image surface: one YAML entry per entity, kind-keyed, discovered through includes. The Go types that back it live in `/charly-internals:vm-spec`; the rendering paths in `/charly-internals:libvirt-renderer` and `/charly-internals:cloud-init-renderer`.
 
@@ -1412,7 +1412,7 @@ vms-catalog-skill:
                                                       # Note also that #DistroID (14 ids, omarchy included) and the embedded `distro:` BUILD vocabulary are
                                                       # different sets, and the gap is SILENT: `buildVmSyntheticBox` resolves this field against
                                                       # the build vocabulary and on a miss leaves `img.Pkg` unset, so candy installation compiles
-                                                      # ZERO package steps while `fleet add` reports success. A schema-valid id is therefore not
+                                                      # ZERO package steps while `deploy add` reports success. A schema-valid id is therefore not
                                                       # automatically a resolvable one.
                                                       # Use a bare id: `ResolveDistro` strips at `:` but the cloud-init
                                                       # dispatches compare exactly, so `debian:13` yields `openssh`. (That sentence is about the
@@ -1546,7 +1546,7 @@ vms-catalog-skill:
             ### Authoring a new cloud_image VM
 
             1. Find the upstream qcow2 URL + verify a sha256 sidecar exists (<url>.SHA256 / .sha256 / .sha256sum).
-            2. Identify the **pre-existing user account** in the upstream image (`arch`, `alpine`, `ubuntu`, `fedora`, `debian`, `cloud-user`, etc.). `base_user:` selects the account to adopt and NOTHING else — it no longer steers any render branch, because the base_user inference is deleted. **`distro:` is required on a `cloud_image` source and the vm kind's `OpValidate` rejects a source that omits it.** Do NOT reason from which dispatch tables an id appears in: the render's dispatch union and the vocabulary `candy_select` resolves against are DIFFERENT SETS, and an id in the first but not the second is exactly where the silent zero-package failure lives.** They are: `composePackages` keys on {`debian`, `ubuntu`} (omitting picks `openssh` over `openssh-server`, so cloud-init hard-fails `E: Unable to locate package openssh`); `sshUnitForDistro` keys on the same two (omitting yields unit `sshd` where Debian needs `ssh`); `pacmanFamily`, i.e. `FormatForDistroID(distro) == "pac"`, keys on **five** ids — {`arch`, `archarm`, `manjaro`, `endeavouros`, `cachyos`} — and omitting drops the guest onto the `packages:` path instead of `pacman -Sy --needed` plus the sshd try-restart guard, so cloud-init's bare `pacman -S` re-triggers exactly the host-key regen race described in `/charly-internals:cloud-init-renderer` (its D15 section); and the init branch keys on {`alpine`} (omitting renders systemd onto an OpenRC guest, and the VM boots unreachable). Because nothing is inferred, a CachyOS, Manjaro, EndeavourOS or archarm image is in the pacman family when — and only when — it SAYS so; all four are first-class ids in the vocabulary, so none of them needs to borrow `arch`. An omitted distro is rejected at author time rather than silently leaving the pacman family and taking the racy install path; likewise an Alpine image whose account is not literally `alpine`. The qualifier is load-bearing in both directions, and both are statements about the MECHANISM, not permissions that compete with the rule above: an Arch derivative shipping an `arch` account happens to resolve to `arch` and render correctly, while a Debian image shipping an `alpine` account resolves to `alpine` and breaks. Neither changes what to write — **the SET rule stated at the top of this section governs** — a Manjaro image writes `distro: arch`, whatever its account happens to make the inference do. Not `manjaro`: that is a `pacmanFamily` key, so cloud-init would render it correctly, but it is **not** one of the five ids `candy_select` resolves against, so candy installation would compile nothing. The two tables are different sets, and this clause is scoped to the candy vocabulary. **Always SET `distro:`, as a BARE id from the closed `#DistroID` vocabulary.** Two consumers read this field against **different sets**, which is the whole difficulty. The cloud-init dispatches resolve it through the generated `spec.DistroFormats` / `DistroSSHUnits` / `DistroInits` tables — 13 ids, no inference from `base_user`, and no fallback for a miss. `buildVmSyntheticBox` (`candy/plugin-fleet/candy_select.go`, not source-kind gated) instead resolves this field — or `base_user` when empty — against a **five-id vocabulary**, `{arch, cachyos, debian, fedora, ubuntu}`, with exact-then-base-name lookup and no alias or `ID_LIKE` rescue; a miss leaves `img.Pkg` unset and candy installation compiles **zero package steps silently** while `fleet add` reports success. **If the guest is one of those five, name it.** **Alpine is the case that must not be generalised: set `distro: alpine`.** It IS a vocabulary member now (`alpine: {format: apk, ssh_unit: sshd, init: openrc}`), and naming it is what selects apk plus the OpenRC path — any other value renders systemd onto a guest that has none and the VM boots unreachable. Alpine's candy installation is unresolvable either way; losing the packages is recoverable, losing the boot is not. **For a guest outside the five, naming a near relative is a workaround, not a repair** — `arch` for manjaro/archarm/endeavouros, `fedora` for Rocky or AlmaLinux, `ubuntu` for a Ubuntu derivative. It makes candy steps compile, but it selects **that** distro's DistroDef, version tags and repositories: fedora's carries `version: "43"`, so candies' `fedora:43` sections apply to a Rocky guest and its rpm templates reach for COPR, which is Fedora infrastructure. The lookup succeeding is not the install working. The repair is a vocabulary entry, which is a product gap; openSUSE has neither an entry nor a near relative, since its manager is zypper. Use a bare id — `ResolveDistro` strips at `:` while the dispatches compare exactly, so `distro: debian:13` yields `openssh` instead of `openssh-server`. (The `rocky: fedora` line in `charly.yml` is `ovmf_distro_aliases`, an OVMF FIRMWARE table, not consulted here.) Conversely a wrong id that the vocabulary DOES resolve is actively harmful — `distro:` also selects the guest's package manager for candy installation via `buildVmSyntheticBox` (`candy/plugin-fleet/candy_select.go`, with no source-kind gate), whose own comment records a candy deploy running `pacman` on a debian guest and failing exit 127, and a missing `DistroDef` compiling zero package steps for every candy, silently. `base_user: debian` or `ubuntu` without it resolves to the empty distro, which picks `openssh` instead of `openssh-server` (cloud-init hard-fails `E: Unable to locate package openssh`) and unit `sshd` where Debian needs `ssh`; an Alpine image whose account is named anything but `alpine` renders the systemd path onto an OpenRC guest. All three boot unreachable. This becomes `source.base_user:` — triggers the adopt pattern described below.
+            2. Identify the **pre-existing user account** in the upstream image (`arch`, `alpine`, `ubuntu`, `fedora`, `debian`, `cloud-user`, etc.). `base_user:` selects the account to adopt and NOTHING else — it no longer steers any render branch, because the base_user inference is deleted. **`distro:` is required on a `cloud_image` source and the vm kind's `OpValidate` rejects a source that omits it.** Do NOT reason from which dispatch tables an id appears in: the render's dispatch union and the vocabulary `candy_select` resolves against are DIFFERENT SETS, and an id in the first but not the second is exactly where the silent zero-package failure lives.** They are: `composePackages` keys on {`debian`, `ubuntu`} (omitting picks `openssh` over `openssh-server`, so cloud-init hard-fails `E: Unable to locate package openssh`); `sshUnitForDistro` keys on the same two (omitting yields unit `sshd` where Debian needs `ssh`); `pacmanFamily`, i.e. `FormatForDistroID(distro) == "pac"`, keys on **five** ids — {`arch`, `archarm`, `manjaro`, `endeavouros`, `cachyos`} — and omitting drops the guest onto the `packages:` path instead of `pacman -Sy --needed` plus the sshd try-restart guard, so cloud-init's bare `pacman -S` re-triggers exactly the host-key regen race described in `/charly-internals:cloud-init-renderer` (its D15 section); and the init branch keys on {`alpine`} (omitting renders systemd onto an OpenRC guest, and the VM boots unreachable). Because nothing is inferred, a CachyOS, Manjaro, EndeavourOS or archarm image is in the pacman family when — and only when — it SAYS so; all four are first-class ids in the vocabulary, so none of them needs to borrow `arch`. An omitted distro is rejected at author time rather than silently leaving the pacman family and taking the racy install path; likewise an Alpine image whose account is not literally `alpine`. The qualifier is load-bearing in both directions, and both are statements about the MECHANISM, not permissions that compete with the rule above: an Arch derivative shipping an `arch` account happens to resolve to `arch` and render correctly, while a Debian image shipping an `alpine` account resolves to `alpine` and breaks. Neither changes what to write — **the SET rule stated at the top of this section governs** — a Manjaro image writes `distro: arch`, whatever its account happens to make the inference do. Not `manjaro`: that is a `pacmanFamily` key, so cloud-init would render it correctly, but it is **not** one of the five ids `candy_select` resolves against, so candy installation would compile nothing. The two tables are different sets, and this clause is scoped to the candy vocabulary. **Always SET `distro:`, as a BARE id from the closed `#DistroID` vocabulary.** Two consumers read this field against **different sets**, which is the whole difficulty. The cloud-init dispatches resolve it through the generated `spec.DistroFormats` / `DistroSSHUnits` / `DistroInits` tables — 13 ids, no inference from `base_user`, and no fallback for a miss. `buildVmSyntheticBox` (`candy/plugin-fleet/candy_select.go`, not source-kind gated) instead resolves this field — or `base_user` when empty — against a **five-id vocabulary**, `{arch, cachyos, debian, fedora, ubuntu}`, with exact-then-base-name lookup and no alias or `ID_LIKE` rescue; a miss leaves `img.Pkg` unset and candy installation compiles **zero package steps silently** while `deploy add` reports success. **If the guest is one of those five, name it.** **Alpine is the case that must not be generalised: set `distro: alpine`.** It IS a vocabulary member now (`alpine: {format: apk, ssh_unit: sshd, init: openrc}`), and naming it is what selects apk plus the OpenRC path — any other value renders systemd onto a guest that has none and the VM boots unreachable. Alpine's candy installation is unresolvable either way; losing the packages is recoverable, losing the boot is not. **For a guest outside the five, naming a near relative is a workaround, not a repair** — `arch` for manjaro/archarm/endeavouros, `fedora` for Rocky or AlmaLinux, `ubuntu` for a Ubuntu derivative. It makes candy steps compile, but it selects **that** distro's DistroDef, version tags and repositories: fedora's carries `version: "43"`, so candies' `fedora:43` sections apply to a Rocky guest and its rpm templates reach for COPR, which is Fedora infrastructure. The lookup succeeding is not the install working. The repair is a vocabulary entry, which is a product gap; openSUSE has neither an entry nor a near relative, since its manager is zypper. Use a bare id — `ResolveDistro` strips at `:` while the dispatches compare exactly, so `distro: debian:13` yields `openssh` instead of `openssh-server`. (The `rocky: fedora` line in `charly.yml` is `ovmf_distro_aliases`, an OVMF FIRMWARE table, not consulted here.) Conversely a wrong id that the vocabulary DOES resolve is actively harmful — `distro:` also selects the guest's package manager for candy installation via `buildVmSyntheticBox` (`candy/plugin-fleet/candy_select.go`, with no source-kind gate), whose own comment records a candy deploy running `pacman` on a debian guest and failing exit 127, and a missing `DistroDef` compiling zero package steps for every candy, silently. `base_user: debian` or `ubuntu` without it resolves to the empty distro, which picks `openssh` instead of `openssh-server` (cloud-init hard-fails `E: Unable to locate package openssh`) and unit `sshd` where Debian needs `ssh`; an Alpine image whose account is named anything but `alpine` renders the systemd path onto an OpenRC guest. All three boot unreachable. This becomes `source.base_user:` — triggers the adopt pattern described below.
             3. Start from `/charly-vm:arch-cloud-vm` as a template. Change `url`, `base_user`, **`distro:`** (the template ships it LIVE as `distro: arch`; it is required on every cloud_image source, so change the value rather than expecting to uncomment it — see the rule above), and the distro-specific cloud_init `package:` and `runcmd:`.
             4. Pick firmware: default to `bios` unless the upstream image explicitly requires UEFI (e.g., secure boot lock-in).
             5. Run `charly vm build <name>` — observe the fetched qcow2 sha256 + rendered seed ISO path.
@@ -1638,7 +1638,7 @@ vms-catalog-skill:
 
             For a VM-on-VM layered system, the base box's VM is cloned
             (`source.kind: clone`) and the child's own candies are applied in-guest
-            via `charly fleet add vm:<child>` — the same InstallPlan IR that pod
+            via `charly deploy add vm:<child>` — the same InstallPlan IR that pod
             deploys render into a Containerfile.
 
             ## Adopt pattern: base_user (cloud_image only)
@@ -1664,7 +1664,7 @@ vms-catalog-skill:
 
             ## charly_install.strategy: auto (cloud_image)
 
-            `charly_install.strategy: auto` in `cloud_init:` wires `charly`'s in-guest installer (`/charly-internals:cloud-init-renderer` → emitted `runcmd:` entries) so the provisioned VM comes up with `charly` already installed. Lets `charly fleet add vm:<name>` apply host-deploy-style layer recipes inside the VM over SSH without a bootstrap round-trip. See `/charly-internals:cloud-init-renderer` for the emission + handshake.
+            `charly_install.strategy: auto` in `cloud_init:` wires `charly`'s in-guest installer (`/charly-internals:cloud-init-renderer` → emitted `runcmd:` entries) so the provisioned VM comes up with `charly` already installed. Lets `charly deploy add vm:<name>` apply host-deploy-style layer recipes inside the VM over SSH without a bootstrap round-trip. See `/charly-internals:cloud-init-renderer` for the emission + handshake.
 
             `strategy: skip` skips the step entirely — useful when the VM will be managed by something other than `charly` after provisioning. (`none` is NOT a value: the closed schema is `auto | scp | skip` and `none` hard-fails it.)
 
@@ -1690,7 +1690,7 @@ vms-catalog-skill:
 
             - `/charly-vm:vm` — the `charly vm build/create/start/stop/ssh/console` command family
             - `/charly-build:migrate` — `charly migrate` conversion from legacy
-            - `/charly-core:deploy` — `charly fleet add vm:<name>` for in-guest layer application
+            - `/charly-core:deploy` — `charly deploy add vm:<name>` for in-guest layer application
             - `/charly-vm:arch-cloud-vm` — canonical cloud_image VM
             - `/charly-internals:vm-spec` — Go type reference
             - `/charly-internals:libvirt-renderer` — libvirt XML emission

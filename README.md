@@ -51,7 +51,7 @@ my-vm-bed:
 
 Drive it with the `charly vm` verbs (`charly vm build my-vm`, `charly vm create
 my-vm-bed`, `charly vm ssh my-vm-bed`) or apply layers in-guest with
-`charly fleet add vm:my-vm-bed`. The full field-by-field reference is
+`charly deploy add vm:my-vm-bed`. The full field-by-field reference is
 `/charly-vm:vms-catalog`; the Go types are `/charly-internals:vm-spec`.
 
 ## Layout
