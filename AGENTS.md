@@ -5,13 +5,21 @@ kind-authoring `skill:` entities (the `kind: vm` schema, the authoring catalog,
 and the cloud-image / bootstrap worked examples) that `charly marketplace
 generate` projects into the marketplace corpus as the `/charly-vm:*` skills.
 The candy itself ships no install content (a validate-satisfying no-op `plan:`);
-the load-bearing content is the sibling `skill:` nodes in `charly.yml`.
+the load-bearing content is the sibling skills' BODIES, authored under
+`.agents/skills/<name>/SKILL.md`; their nodes in `charly.yml` carry the routing
+metadata only.
 
 Canonical files:
 
-- `charly.yml` — the `charly-vm:` candy entity and its `skill:` entities
-  (`arch-cloud-vm`, `cachyos-bootstrap-vm`, `debian-debootstrap-vm`,
-  `ubuntu-debootstrap-vm`, `vm`, `vms-catalog`).
+- `charly.yml` — the `charly-vm:` candy entity and its `skill:` entities as
+  **routing metadata only** (`name`, `family`, `owner` and the `triggers:` that
+  generate the dispatcher rows) — `arch-cloud-vm`, `cachyos-bootstrap-vm`,
+  `debian-debootstrap-vm`, `ubuntu-debootstrap-vm`, `vm`, `vms-catalog`. Their
+  bodies are authored content and live under `.agents/skills/<name>/SKILL.md`;
+  four of the six carry `triggers:`, and `arch-cloud-vm` and `vms-catalog` do
+  not.
+- `.agents/skills/<name>/SKILL.md` — the skill BODIES: authored here, projected
+  into the corpus.
 - `.github/workflows/tag-on-merge.yml` — CalVer tag + `CHANGELOG/` on merge.
 - `README.md` — user overview only; never agent guidance.
 
@@ -36,15 +44,16 @@ Canonical files:
   `validate / validate`, defined in `opencharly/.github`); this repo has **no
   per-repo candy gate** and ships only `.github/workflows/tag-on-merge.yml`.
 - Validate the manifest with `charly box validate` at the repo root.
-- The `skill:` entities are PROJECTED into the marketplace corpus by
+- The skill BODIES are PROJECTED into the marketplace corpus by
   `charly marketplace generate`; a skill edit is only half-landed until the
   owning repo's corpus is regenerated (see `/charly-internals:marketplace`).
 
 ## Modify this repo
 
-- Edit the `skill:` entity in `charly.yml`; the emitted `SKILL.md` under
-  `marketplace/**` is generated (DO-NOT-EDIT) and reverted by the next
-  regeneration.
+- Edit the skill's routing node in `charly.yml` and its body under
+  `.agents/skills/<name>/SKILL.md` together — the body is authored content and
+  the projected usage source. The `SKILL.md` under `marketplace/**` is
+  generated (DO-NOT-EDIT) and reverted by the next regeneration.
 - Keep each skill's `description:` and body describing the current schema —
   they are published prose. A schema change belongs in the owning skill in the
   same change that introduces it.
