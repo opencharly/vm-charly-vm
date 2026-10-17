@@ -5,7 +5,9 @@ kind-authoring `skill:` entities (the `kind: vm` schema, the authoring catalog,
 and the cloud-image / bootstrap worked examples) that `charly marketplace
 generate` projects into the marketplace corpus as the `/charly-vm:*` skills.
 The candy itself ships no install content (a validate-satisfying no-op `plan:`);
-the load-bearing content is the sibling `skill:` nodes in `charly.yml`.
+the load-bearing content is the sibling skills' BODIES, authored under
+`.agents/skills/<name>/SKILL.md`; their nodes in `charly.yml` carry the routing
+metadata only.
 
 Canonical files:
 
@@ -42,7 +44,7 @@ Canonical files:
   `validate / validate`, defined in `opencharly/.github`); this repo has **no
   per-repo candy gate** and ships only `.github/workflows/tag-on-merge.yml`.
 - Validate the manifest with `charly box validate` at the repo root.
-- The `skill:` entities are PROJECTED into the marketplace corpus by
+- The skill BODIES are PROJECTED into the marketplace corpus by
   `charly marketplace generate`; a skill edit is only half-landed until the
   owning repo's corpus is regenerated (see `/charly-internals:marketplace`).
 
