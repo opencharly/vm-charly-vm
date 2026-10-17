@@ -9,9 +9,15 @@ the load-bearing content is the sibling `skill:` nodes in `charly.yml`.
 
 Canonical files:
 
-- `charly.yml` — the `charly-vm:` candy entity and its `skill:` entities
-  (`arch-cloud-vm`, `cachyos-bootstrap-vm`, `debian-debootstrap-vm`,
-  `ubuntu-debootstrap-vm`, `vm`, `vms-catalog`).
+- `charly.yml` — the `charly-vm:` candy entity and its `skill:` entities as
+  **routing metadata only** (`name`, `family`, `owner` and the `triggers:` that
+  generate the dispatcher rows) — `arch-cloud-vm`, `cachyos-bootstrap-vm`,
+  `debian-debootstrap-vm`, `ubuntu-debootstrap-vm`, `vm`, `vms-catalog`. Their
+  bodies are authored content and live under `.agents/skills/<name>/SKILL.md`;
+  four of the six carry `triggers:`, and `arch-cloud-vm` and `vms-catalog` do
+  not.
+- `.agents/skills/<name>/SKILL.md` — the skill BODIES: authored here, projected
+  into the corpus.
 - `.github/workflows/tag-on-merge.yml` — CalVer tag + `CHANGELOG/` on merge.
 - `README.md` — user overview only; never agent guidance.
 
@@ -42,9 +48,10 @@ Canonical files:
 
 ## Modify this repo
 
-- Edit the `skill:` entity in `charly.yml`; the emitted `SKILL.md` under
-  `marketplace/**` is generated (DO-NOT-EDIT) and reverted by the next
-  regeneration.
+- Edit the skill's routing node in `charly.yml` and its body under
+  `.agents/skills/<name>/SKILL.md` together — the body is authored content and
+  the projected usage source. The `SKILL.md` under `marketplace/**` is
+  generated (DO-NOT-EDIT) and reverted by the next regeneration.
 - Keep each skill's `description:` and body describing the current schema —
   they are published prose. A schema change belongs in the owning skill in the
   same change that introduces it.

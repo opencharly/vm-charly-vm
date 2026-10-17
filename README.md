@@ -57,8 +57,11 @@ my-vm-bed`, `charly vm ssh my-vm-bed`) or apply layers in-guest with
 ## Layout
 
 - `charly.yml` — the `charly-vm` concept candy plus the family's `skill:`
-  entities (`arch-cloud-vm`, `cachyos-bootstrap-vm`, `debian-debootstrap-vm`,
-  `ubuntu-debootstrap-vm`, `vm`, `vms-catalog`).
+  entities as **routing metadata only** (`name`, `family`, `owner` and the
+  `triggers:` that generate the dispatcher rows) — `arch-cloud-vm`,
+  `cachyos-bootstrap-vm`, `debian-debootstrap-vm`, `ubuntu-debootstrap-vm`,
+  `vm`, `vms-catalog`. Their bodies are authored content and live under
+  `.agents/skills/<name>/SKILL.md`; four of the six carry `triggers:`.
 - `.github/workflows/tag-on-merge.yml` — CalVer tag + `CHANGELOG/` on merge.
 - `README.md` — this user overview.
 
