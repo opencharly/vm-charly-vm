@@ -1,68 +1,43 @@
-# AGENTS.md — vm-charly-vm
+# AGENTS.md — vm-charly-vm (retired)
 
-Standalone repo for the `charly-vm` **concept candy** — it owns the VM
-kind-authoring `skill:` entities (the `kind: vm` schema, the authoring catalog,
-and the cloud-image / bootstrap worked examples) that `charly marketplace
-generate` projects into the marketplace corpus as the `/charly-vm:*` skills.
-The candy itself ships no install content (a validate-satisfying no-op `plan:`);
-the load-bearing content is the sibling skills' BODIES, authored under
-`.agents/skills/<name>/SKILL.md`; their nodes in `charly.yml` carry the routing
-metadata only.
+This repo is **retired**: it authors nothing and must not be edited except to
+record a further move. It was the `charly-vm` concept candy — a `true`-no-op
+`plan:` plus 6 `skill:` routing nodes with their prose in `.agents/skills/`.
+Under `AGENTS.md` Part II #5 a skill lives in the repo whose code, plugin or
+config it describes, and none of them lived here, so every skill moved
+byte-identically to the repo that holds the entity it documents:
+
+- `arch-cloud-vm` → `opencharly/distro-arch`;
+- `cachyos-bootstrap-vm` → `opencharly/distro-cachyos`;
+- `debian-debootstrap-vm` → `opencharly/distro-debian`;
+- `ubuntu-debootstrap-vm` → `opencharly/distro-ubuntu`;
+- `vm` → `opencharly/plugin-vm`;
+- `vms-catalog` → `opencharly/spec`.
+
+The `/charly-vm:<skill>` addresses are unchanged: family `vm` is carried by the
+destination nodes, so the dispatcher rows did not move meaning.
 
 Canonical files:
 
-- `charly.yml` — the `charly-vm:` candy entity and its `skill:` entities as
-  **routing metadata only** (`name`, `family`, `owner` and the `triggers:` that
-  generate the dispatcher rows) — `arch-cloud-vm`, `cachyos-bootstrap-vm`,
-  `debian-debootstrap-vm`, `ubuntu-debootstrap-vm`, `vm`, `vms-catalog`. Their
-  bodies are authored content and live under `.agents/skills/<name>/SKILL.md`;
-  four of the six carry `triggers:`, and `arch-cloud-vm` and `vms-catalog` do
-  not.
-- `.agents/skills/<name>/SKILL.md` — the skill BODIES: authored here, projected
-  into the corpus.
+- `charly.yml` — the drained `charly-vm:` candy entity: a `true` no-op `plan:`
+  plus a `true` no-op `check:` (it asserts nothing; it is a placeholder step). It
+  exists only so this repo validated as a project before retirement.
+- `README.md` — user overview only; never agent guidance; it is the destination map.
 - `.github/workflows/tag-on-merge.yml` — CalVer tag + `CHANGELOG/` on merge.
-- `README.md` — user overview only; never agent guidance.
-
-## Load these skills first (R0)
-
-- `/charly-vm:vm` — the owning `charly vm` command-family skill. VM lifecycle,
-  libvirt vs QEMU backends, firmware, GPU passthrough, snapshots. Load before
-  editing or troubleshooting the `vm` skill entity.
-- `/charly-vm:vms-catalog` — the `kind: vm` authoring reference (`VmSpec`
-  fields, the `cloud_image` / `bootc` / `bootstrap` / `iso` / `clone` source
-  kinds, the `base_user` adopt pattern). Load before editing a VM-authoring
-  claim.
-- `/charly-internals:vm-spec` — the `VmSpec` Go type reference and validation
-  rules. Load before asserting a field's semantics or default.
-- `/charly-internals:skills` — the skill-authoring/skill-maintenance reference
-  (where doc content belongs, the projection model). Load before adding or
-  changing a `skill:` entity.
-
-## Build / validate / test
-
-- The merge gate is the **org-wide** `charly/pr-validator` (required check
-  `validate / validate`, defined in `opencharly/.github`); this repo has **no
-  per-repo candy gate** and ships only `.github/workflows/tag-on-merge.yml`.
-- Validate the manifest with `charly box validate` at the repo root.
-- The skill BODIES are PROJECTED into the marketplace corpus by
-  `charly marketplace generate`; a skill edit is only half-landed until the
-  owning repo's corpus is regenerated (see `/charly-internals:marketplace`).
 
 ## Modify this repo
 
-- Edit the skill's routing node in `charly.yml` and its body under
-  `.agents/skills/<name>/SKILL.md` together — the body is authored content and
-  the projected usage source. The `SKILL.md` under `marketplace/**` is
-  generated (DO-NOT-EDIT) and reverted by the next regeneration.
-- Keep each skill's `description:` and body describing the current schema —
-  they are published prose. A schema change belongs in the owning skill in the
-  same change that introduces it.
-- New behavioural claims belong in the relevant skill body, not in this
-  signpost.
+- Don't. There is no skill, node or prose here to update. A change to a
+  `vm`-family skill is a change at its destination repo, in the same pull
+  request as the entity it documents.
 
 ## Landing
 
-- The authoritative landing mechanics are `/charly-internals:git-workflow` and
-  the umbrella `AGENTS.md` in `opencharly/opencharly`; this signpost does not
-  restate them.
-- History lives in `CHANGELOG/` (written by `tag-on-merge` at merge time).
+- PR-only. Every change lands through a pull request; the org-required
+  `charly/pr-validator` validates the diff and body and arms native auto-merge on
+  PASS. Direct pushes to `main` are blocked.
+- History lives in `CHANGELOG/` (written by `tag-on-merge` at merge time); the PR
+  body IS the changelog.
+- The authoritative rulebook is the umbrella `AGENTS.md` in
+  `opencharly/opencharly` and `charly/AGENTS.md` in the charly repo. Do not
+  restate its rules here.
