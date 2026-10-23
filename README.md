@@ -1,72 +1,40 @@
-# vm-charly-vm
+# charly-vm — retired
 
-Home of the `charly-vm` concept candy and the **VM kind-authoring skills** for
-[charly](https://github.com/opencharly/charly) — the `kind: vm` schema, the VM
-authoring catalog, and the cloud-image / bootstrap worked examples, projected
-into the marketplace corpus as the `/charly-vm:*` skills.
+> **RETIRED — this repo publishes nothing.** All 6 `vm`-family skills live in the
+> repo that holds the code, plugin or config each one documents (the table below).
+> Nothing is authored, built, deployed or consumed here: a change to a `vm`-family
+> skill is a change at its destination repo, in the same pull request as the entity it
+> documents.
 
-This repo ships **no installable content**: the `charly-vm` candy is a
-documentation-only node whose `plan:` is a validate-satisfying no-op. What it
-owns is the family's `skill:` entities — sibling nodes in the same `charly.yml`
-— which `charly marketplace generate` renders into the standalone
-[opencharly/marketplace](https://github.com/opencharly/marketplace) corpus.
+**This repo no longer authors a skill.** It was the `charly-vm` concept candy: a `true`-no-op `plan:` and 6 `skill:` entities, with the prose in `.agents/skills/`.
+Under `AGENTS.md` Part II #5 a skill lives in the repo whose code,
+plugin or config it describes — and this repo holds none of them (measured before the
+change: **0 `.go`, 0 `.cue`, no `candy/` directory**) — so 6 of them moved, byte-identically,
+to the repo that does:
 
-## Skills this repo owns
+| Skill | Now authored in | The entity that owns it |
+|---|---|---|
+| `arch-cloud-vm` | [`opencharly/distro-arch`](https://github.com/opencharly/distro-arch) | the `box/arch` entity it documents |
+| `cachyos-bootstrap-vm` | [`opencharly/distro-cachyos`](https://github.com/opencharly/distro-cachyos) | the `box/cachyos` entity it documents |
+| `debian-debootstrap-vm` | [`opencharly/distro-debian`](https://github.com/opencharly/distro-debian) | the `box/debian` entity it documents |
+| `ubuntu-debootstrap-vm` | [`opencharly/distro-ubuntu`](https://github.com/opencharly/distro-ubuntu) | the `box/ubuntu` entity it documents |
+| `vm` | [`opencharly/plugin-vm`](https://github.com/opencharly/plugin-vm) | the `command:vm` provider and the libvirt renderer |
+| `vms-catalog` | [`opencharly/spec`](https://github.com/opencharly/spec) | the `vm.yml` / VmSpec CUE schema |
 
-| Skill | Covers |
+**The addresses did not change.** Every skill keeps its `vm` family at its
+destination node, so `/charly-vm:<skill>` still resolve — they are simply authored
+where the entity is implemented. The move is the rule `AGENTS.md` Part II #5 states, tracked
+in [opencharly/opencharly#600](https://github.com/opencharly/opencharly/issues/600).
+
+## What remains here
+
+| Property | Value |
 |---|---|
-| `/charly-vm:vm` | The `charly vm` command family: build / create / start / stop / ssh / console, libvirt vs QEMU backends, BIOS vs UEFI firmware, virtio-gpu, GPU passthrough, snapshots. |
-| `/charly-vm:vms-catalog` | The `kind: vm` authoring reference — `VmSpec` fields, the `cloud_image` / `bootc` / `bootstrap` / `iso` / `clone` source kinds, the `base_user` adopt pattern. |
-| `/charly-vm:arch-cloud-vm` | The canonical `source.kind: cloud_image` worked example (Arch cloud image, BIOS, virtio-gpu, resource sizing). |
-| `/charly-vm:cachyos-bootstrap-vm` | A `source.kind: bootstrap` VM built with `pacstrap` inside a privileged builder. |
-| `/charly-vm:debian-debootstrap-vm` | A `source.kind: bootstrap` Debian VM built with `debootstrap`. |
-| `/charly-vm:ubuntu-debootstrap-vm` | A `source.kind: bootstrap` Ubuntu VM built with `debootstrap`. |
+| Layer / candy | `charly-vm` (drained concept candy) |
+| Install content | none — a `true` no-op `plan:` |
+| Owns | nothing — 0 `skill:` entities |
+| Service / port | none |
 
-## What a VM entity looks like
-
-A VM is a name-first `kind: vm` node in a project's `charly.yml` — the entity
-describes only the VM's shape (disk, RAM, SSH, cloud-init, libvirt); the deploy
-that uses it carries the authorization:
-
-```yaml
-# the ENTITY (shape only — no disposable:)
-my-vm:
-  vm:
-    source:
-      kind: cloud_image
-      distro: arch
-      url: https://fastly.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2
-      base_user: arch
-    disk_size: 40G
-    ram: 8G
-    cpu: 4
-    ssh: {port: 2224, key_source: generate}
-
-# the DISPOSABLE DEPLOY a bed or automation drives (create/destroy authorization)
-my-vm-bed:
-  vm:
-    from: my-vm
-    disposable: true
-```
-
-Drive it with the `charly vm` verbs (`charly vm build my-vm`, `charly vm create
-my-vm-bed`, `charly vm ssh my-vm-bed`) or apply layers in-guest with
-`charly deploy add vm:my-vm-bed`. The full field-by-field reference is
-`/charly-vm:vms-catalog`; the Go types are `/charly-internals:vm-spec`.
-
-## Layout
-
-- `charly.yml` — the `charly-vm` concept candy plus the family's `skill:`
-  entities as **routing metadata only** (`name`, `family`, `owner` and the
-  `triggers:` that generate the dispatcher rows) — `arch-cloud-vm`,
-  `cachyos-bootstrap-vm`, `debian-debootstrap-vm`, `ubuntu-debootstrap-vm`,
-  `vm`, `vms-catalog`. Their bodies are authored content and live under
-  `.agents/skills/<name>/SKILL.md`; four of the six carry `triggers:`.
-- `.github/workflows/tag-on-merge.yml` — CalVer tag + `CHANGELOG/` on merge.
-- `README.md` — this user overview.
-
-## Related
-
-- [`opencharly/marketplace`](https://github.com/opencharly/marketplace) — the generated skill corpus.
-- [`opencharly/charly`](https://github.com/opencharly/charly) — the charly CLI and image builder.
-- [`opencharly/opencharly`](https://github.com/opencharly/opencharly) — the umbrella.
+Do not compose, reference or edit this repo: the skills, their routing nodes and their
+prose all live at the destinations above, and this repo's retirement is tracked in
+[opencharly/opencharly#600](https://github.com/opencharly/opencharly/issues/600).
